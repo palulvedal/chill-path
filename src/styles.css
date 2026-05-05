@@ -934,3 +934,57 @@ textarea {
     align-items: flex-start;
   }
 }
+
+/* Layout polish for the planning tools. The daily plan contains many fields and
+   needs more horizontal room than the smaller summary cards on desktop. */
+input, textarea, select {
+  width: 100%;
+  min-width: 0;
+}
+
+label, .card, .section-heading, .hero-actions {
+  min-width: 0;
+}
+
+@media (min-width: 1051px) {
+  .tool-grid:not(.overview-grid) {
+    grid-template-columns: minmax(560px, 2fr) minmax(300px, 1fr);
+  }
+
+  .tool-grid:not(.overview-grid) > .daily-plan-card {
+    grid-row: 1 / span 2;
+  }
+
+  .daily-plan-card .plan-form-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    gap: 1.05rem 1.1rem;
+  }
+}
+
+.daily-plan-card {
+  overflow: hidden;
+}
+
+.daily-plan-card .plan-form-grid label {
+  align-content: start;
+}
+
+.daily-plan-card input::placeholder,
+.daily-plan-card textarea::placeholder {
+  color: #8b7e76;
+  opacity: 0.85;
+}
+
+.daily-plan-card .hero-actions {
+  align-items: center;
+}
+
+.parking-form input {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) and (min-width: 1051px) {
+  .daily-plan-card .plan-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -7,14 +7,14 @@ Dette er en Chillio-inspirert, men ikke-kopiert, selvhjelps-/vanebyggingsapp. De
 - Row Level Security, slik at hver bruker kun får tilgang til egne data
 - Cloudflare Pages som frontend-hosting
 - Vite + React som frontend
-- Onboarding-test
-- Personlig plan-oppsummering
+- Startkartlegging
+- Personlig planoppsummering
 - 14-dagers program med 3 mini-leksjoner per dag
 - Quiz/refleksjon per leksjon
 - Daglig innsjekk
 - Journal
 - Vaner og daglig vanelogging
-- Streak/progresjon
+- Rekke/fremgang
 
 Appen er ikke ment som medisinsk rådgivning, diagnostikk eller behandling.
 
@@ -80,7 +80,7 @@ I Supabase kan du justere:
 SQL-filen lager disse tabellene:
 
 - `profiles`
-- `onboarding_answers`
+- `startkartlegging_answers`
 - `user_progress`
 - `lesson_completions`
 - `daily_checkins`
@@ -97,7 +97,7 @@ Mulige neste steg:
 - Adminside for å redigere leksjoner i Supabase i stedet for hardkodet innhold i `lessonData.js`
 - Betaling med Stripe eller Lemon Squeezy
 - E-postpåminnelser med Supabase Edge Functions eller Cloudflare Workers Cron Triggers
-- Mer avansert personalisering av programmet basert på onboarding
+- Mer avansert personalisering av programmet basert på startkartlegging
 - Graf over humør/energi/fokus over tid
 - Eksport av journal til CSV/PDF
 - PWA-støtte slik at den kan installeres på mobilhjemskjermen

@@ -49,13 +49,13 @@ function SetupMissing() {
     <main className="setup-page">
       <section className="setup-card">
         <div className="logo-mark">☁️</div>
-        <h1>Supabase er ikke koblet til ennå</h1>
+        <h1>Appen mangler Supabase-oppsett</h1>
         <p>
-          Legg inn miljøvariablene under i Cloudflare Pages, eller lokalt i en <code>.env</code>-fil.
+          Legg inn disse miljøvariablene i Cloudflare Pages. Bruker du appen lokalt, kan du legge dem i en <code>.env</code>-fil.
         </p>
         <pre>{`VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR-SUPABASE-ANON-KEY`}</pre>
-        <p>Kjør deretter SQL-filen <code>supabase/schema.sql</code> i Supabase SQL Editor.</p>
+        <p>Kjør deretter <code>supabase/schema.sql</code> i Supabase SQL Editor for å opprette tabellene.</p>
       </section>
     </main>
   );
@@ -85,7 +85,7 @@ function AuthPage() {
     if (result.error) {
       setMessage(result.error.message);
     } else if (mode === 'signup' && !result.data.session) {
-      setMessage('Brukeren er opprettet. Sjekk e-post dersom Supabase-prosjektet krever bekreftelse.');
+      setMessage('Kontoen er opprettet. Sjekk e-posten din hvis Supabase krever bekreftelse før innlogging.');
     }
     setLoading(false);
   }
@@ -97,18 +97,18 @@ function AuthPage() {
           <div className="logo-mark">CP</div>
           <span>Chill Path</span>
         </div>
-        <h1>Små daglige steg mot mer ro, fokus og gjennomføring.</h1>
+        <h1>Små daglige steg for mer ro, bedre fokus og lettere gjennomføring.</h1>
         <p>
-          En Cloudflare Pages + Supabase-app med onboarding, personlig plan, daglige mini-leksjoner,
-          refleksjon, vaner og progresjon.
+          En enkel selvhjelpsapp med startkartlegging, personlig plan, korte daglige økter,
+          refleksjon, vaner og oversikt over fremgangen din.
         </p>
         <div className="hero-stack">
-          <span>3 korte økter per dag</span>
-          <span>Refleksjon og innsjekk</span>
-          <span>Streak og vanelogging</span>
+          <span>Tre korte økter per dag</span>
+          <span>Daglig refleksjon og innsjekk</span>
+          <span>Rekke og vanelogging</span>
         </div>
         <p className="medical-note">
-          Ikke medisinsk rådgivning, diagnostikk eller behandling.
+          Dette er ikke medisinsk rådgivning, diagnostikk eller behandling.
         </p>
       </section>
 
@@ -129,11 +129,11 @@ function AuthPage() {
             Passord
             <input type="password" minLength="6" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </label>
-          <Button disabled={loading}>{loading ? 'Jobber ...' : mode === 'login' ? 'Logg inn' : 'Opprett konto'}</Button>
+          <Button disabled={loading}>{loading ? 'Vennligst vent ...' : mode === 'login' ? 'Logg inn' : 'Opprett konto'}</Button>
         </form>
         {message && <p className="form-message">{message}</p>}
         <button className="text-button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
-          {mode === 'login' ? 'Ny bruker? Opprett konto' : 'Har du konto? Logg inn'}
+          {mode === 'login' ? 'Ny her? Opprett konto' : 'Har du allerede konto? Logg inn'}
         </button>
       </section>
     </main>
@@ -153,7 +153,7 @@ function TopNav({ user, profile }) {
       </button>
       <nav>
         <button onClick={() => navigate('dashboard')}>I dag</button>
-        <button onClick={() => navigate('plan')}>Plan</button>
+        <button onClick={() => navigate('plan')}>Hele planen</button>
         <button onClick={() => navigate('habits')}>Vaner</button>
         <button onClick={() => navigate('journal')}>Journal</button>
       </nav>
@@ -204,12 +204,12 @@ function OnboardingPage({ user, onSaved }) {
   return (
     <main className="app-shell narrow">
       <section className="card big-card">
-        <Badge>3 minutter</Badge>
-        <h1>Lag din personlige startplan</h1>
-        <p>Dette er en enkel onboarding-test som tilpasser språk, anbefalinger og første fokusområde.</p>
+        <Badge>Tar ca. 3 minutter</Badge>
+        <h1>Lag en startplan som passer deg</h1>
+        <p>Svarene brukes til å velge en nyttig startretning og gjøre anbefalingene litt mer relevante for deg.</p>
 
         <div className="question-block">
-          <h3>Hva vil du mest jobbe med?</h3>
+          <h3>Hva ønsker du mest hjelp med akkurat nå?</h3>
           <div className="choice-grid">
             {GOALS.map((g) => (
               <button key={g.id} className={goals.includes(g.id) ? 'choice selected' : 'choice'} onClick={() => toggle(goals, setGoals, g.id)}>
@@ -220,7 +220,7 @@ function OnboardingPage({ user, onSaved }) {
         </div>
 
         <div className="question-block">
-          <h3>Hva stopper deg oftest?</h3>
+          <h3>Hva pleier oftest å gjøre det vanskelig?</h3>
           <div className="choice-grid">
             {BLOCKERS.map((b) => (
               <button key={b.id} className={blockers.includes(b.id) ? 'choice selected' : 'choice'} onClick={() => toggle(blockers, setBlockers, b.id)}>
@@ -232,7 +232,7 @@ function OnboardingPage({ user, onSaved }) {
 
         <div className="form-grid">
           <label>
-            Energi gjennom dagen
+            Energi gjennom en vanlig dag
             <select value={energy} onChange={(e) => setEnergy(e.target.value)}>
               <option value="lav">Ofte lav</option>
               <option value="varierer">Varierer mye</option>
@@ -240,7 +240,7 @@ function OnboardingPage({ user, onSaved }) {
             </select>
           </label>
           <label>
-            Passe fokusblokk
+            Anbefalt lengde på fokusøkt
             <select value={focusMinutes} onChange={(e) => setFocusMinutes(e.target.value)}>
               <option value="10">10 minutter</option>
               <option value="15">15 minutter</option>
@@ -248,7 +248,7 @@ function OnboardingPage({ user, onSaved }) {
             </select>
           </label>
           <label>
-            Beste tidspunkt
+            Når passer det best?
             <select value={dailyTime} onChange={(e) => setDailyTime(e.target.value)}>
               <option value="morgen">Morgen</option>
               <option value="formiddag">Formiddag</option>
@@ -257,7 +257,7 @@ function OnboardingPage({ user, onSaved }) {
             </select>
           </label>
           <label>
-            Tone
+            Støttestil
             <select value={tone} onChange={(e) => setTone(e.target.value)}>
               <option value="rolig">Rolig og støttende</option>
               <option value="direkte">Kort og direkte</option>
@@ -268,7 +268,7 @@ function OnboardingPage({ user, onSaved }) {
 
         {error && <p className="form-message error">{error}</p>}
         <Button onClick={save} disabled={saving || goals.length === 0 || blockers.length === 0}>
-          {saving ? 'Lagrer ...' : 'Start programmet'}
+          {saving ? 'Lagrer ...' : 'Gå til dagens plan'}
         </Button>
       </section>
     </main>
@@ -303,7 +303,7 @@ function Dashboard({ data, refresh }) {
           <p>{currentDay.tagline}</p>
           <div className="hero-actions">
             <Button onClick={() => navigate(`lesson/${currentDay.lessons.find((l) => !completions.some((c) => c.lesson_key === l.id))?.id || currentDay.lessons[0].id}`)}>
-              Fortsett dagens mission
+              Fortsett dagens økt
             </Button>
             <Button variant="ghost" onClick={() => navigate('plan')}>Se hele planen</Button>
           </div>
@@ -311,14 +311,14 @@ function Dashboard({ data, refresh }) {
 
         <div className="card metric-card">
           <ProgressRing percent={percent} />
-          <h3>Total progresjon</h3>
+          <h3>Samlet fremgang</h3>
           <p>{completions.length} av {totalLessons} leksjoner fullført</p>
         </div>
 
         <div className="card metric-card">
           <div className="streak-number">{data.progress?.streak_count || 0}</div>
-          <h3>Streak</h3>
-          <p>dager med fullført mission</p>
+          <h3>Rekke</h3>
+          <p>dager der hele dagsopplegget er fullført</p>
         </div>
       </section>
 
@@ -348,7 +348,7 @@ function Dashboard({ data, refresh }) {
             {planSummary.recommendations.map((r) => <li key={r}>{r}</li>)}
           </ul>
           <div className="small-note">
-            Fokusblokk: {data.onboarding?.focus_minutes || 15} min · Beste tidspunkt: {data.onboarding?.daily_time || 'morgen'}
+            Fokusøkt: {data.onboarding?.focus_minutes || 15} min · Beste tidspunkt: {data.onboarding?.daily_time || 'morgen'}
           </div>
         </div>
 
@@ -406,7 +406,7 @@ function CheckinCard({ todayCheckin, userId, refresh }) {
         <label>Energi <input type="range" min="1" max="5" value={energy} onChange={(e) => setEnergy(Number(e.target.value))} /> <b>{energy}</b></label>
         <label>Fokus <input type="range" min="1" max="5" value={focus} onChange={(e) => setFocus(Number(e.target.value))} /> <b>{focus}</b></label>
       </div>
-      <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Hva trenger du i dag?" />
+      <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Skriv kort hva som kan gjøre dagen litt lettere." />
       <Button onClick={save} disabled={saving}>{saving ? 'Lagrer ...' : todayCheckin ? 'Oppdater innsjekk' : 'Lagre innsjekk'}</Button>
     </div>
   );
@@ -419,7 +419,7 @@ function PlanPage({ data }) {
       <section className="card big-card">
         <Badge>14-dagers program</Badge>
         <h1>Din plan</h1>
-        <p>Alle dager er synlige, men appen løfter frem dagen du er på akkurat nå.</p>
+        <p>Du kan se hele programmet her. Dagen du er på nå er markert.</p>
         <div className="day-grid">
           {PROGRAM_DAYS.map((day, dayIndex) => {
             const done = day.lessons.filter((l) => completions.some((c) => c.lesson_key === l.id)).length;
@@ -503,7 +503,7 @@ function LessonPage({ lessonId, data, refresh }) {
         <p className="lesson-body">{lesson.body}</p>
 
         <div className="task-box">
-          <strong>Dagens lille øvelse</strong>
+          <strong>Liten øvelse</strong>
           <p>{lesson.task}</p>
         </div>
 
@@ -520,14 +520,14 @@ function LessonPage({ lessonId, data, refresh }) {
 
         <label>
           Kort refleksjon
-          <textarea value={reflection} onChange={(e) => setReflection(e.target.value)} placeholder="Skriv én eller to setninger ..." />
+          <textarea value={reflection} onChange={(e) => setReflection(e.target.value)} placeholder="Skriv én eller to setninger om hva du vil prøve eller legge merke til." />
         </label>
 
         <div className="hero-actions">
           <Button onClick={complete} disabled={saving || !answer || reflection.trim().length < 3}>
-            {existing ? 'Oppdater og gå videre' : saving ? 'Lagrer ...' : 'Fullfør leksjon'}
+            {saving ? 'Lagrer ...' : existing ? 'Lagre endringer og gå videre' : 'Fullfør økten'}
           </Button>
-          <Button variant="ghost" onClick={() => navigate('dashboard')}>Tilbake</Button>
+          <Button variant="ghost" onClick={() => navigate('dashboard')}>Tilbake til i dag</Button>
         </div>
       </section>
     </main>
@@ -542,7 +542,7 @@ function getNextLesson(currentId) {
 
 function JournalPage({ data, refresh }) {
   const [body, setBody] = useState('');
-  const [prompt, setPrompt] = useState('Hva la jeg merke til i dag?');
+  const [journalPrompt, setJournalPrompt] = useState('Hva la jeg merke til i dag?');
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -550,7 +550,7 @@ function JournalPage({ data, refresh }) {
     setSaving(true);
     await supabase.from('journal_entries').insert({
       user_id: data.user.id,
-      prompt,
+      prompt: journalPrompt,
       body
     });
     setBody('');
@@ -564,20 +564,20 @@ function JournalPage({ data, refresh }) {
         <div className="card">
           <h1>Journal</h1>
           <label>
-            Prompt
-            <select value={prompt} onChange={(e) => setPrompt(e.target.value)}>
+            Skrivespørsmål
+            <select value={journalPrompt} onChange={(e) => setJournalPrompt(e.target.value)}>
               <option>Hva la jeg merke til i dag?</option>
               <option>Hva gjorde starten lettere?</option>
               <option>Hva stoppet meg, og hva kan justeres?</option>
               <option>Hva er én liten seier fra i dag?</option>
             </select>
           </label>
-          <textarea className="journal-input" value={body} onChange={(e) => setBody(e.target.value)} placeholder="Skriv fritt ..." />
+          <textarea className="journal-input" value={body} onChange={(e) => setBody(e.target.value)} placeholder="Skriv fritt. Et par setninger er nok." />
           <Button onClick={save} disabled={saving || !body.trim()}>{saving ? 'Lagrer ...' : 'Lagre notat'}</Button>
         </div>
         <div className="card">
           <h2>Tidligere notater</h2>
-          {!data.journal?.length && <EmptyState title="Ingen notater ennå">Skriv ett lite notat for å gjøre fremgang synlig.</EmptyState>}
+          {!data.journal?.length && <EmptyState title="Ingen notater ennå">Skriv et lite notat for å gjøre erfaringer og fremgang synlig.</EmptyState>}
           <div className="entry-list">
             {(data.journal || []).map((entry) => (
               <article className="entry" key={entry.id}>
@@ -626,13 +626,13 @@ function HabitsPage({ data, refresh }) {
     <main className="app-shell narrow">
       <section className="card big-card">
         <h1>Vaner</h1>
-        <p>Lag små vaner som kan logges daglig. Start heller for lett enn for tungt.</p>
+        <p>Legg inn små vaner du vil gjøre ofte. Start så lett at vanen også passer på travle dager.</p>
         <form className="inline-form" onSubmit={addHabit}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="F.eks. 10 min rydding, gåtur, skrive én setning" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="F.eks. 10 min rydding, kort gåtur eller skrive én setning" />
           <Button>Legg til</Button>
         </form>
 
-        {!activeHabits.length && <EmptyState title="Ingen vaner ennå">Legg inn én liten vane du vil gjøre lett å gjenta.</EmptyState>}
+        {!activeHabits.length && <EmptyState title="Ingen vaner ennå">Legg inn én liten vane du vil gjøre enkel å gjenta.</EmptyState>}
         <div className="habit-list">
           {activeHabits.map((habit) => {
             const done = (data.habitLogs || []).some((log) => log.habit_id === habit.id && log.log_date === today);
@@ -658,7 +658,7 @@ function LoadingScreen() {
     <main className="setup-page">
       <section className="setup-card loading-card">
         <div className="spinner" />
-        <p>Laster Chill Path ...</p>
+        <p>Laster appen ...</p>
       </section>
     </main>
   );
@@ -761,7 +761,7 @@ function App() {
       {page}
       {session && data.onboarding && (
         <footer className="app-footer">
-          Chill Path er et selvhjelps-/vanebyggingsverktøy. Det erstatter ikke helsehjelp, diagnostikk eller behandling.
+          Chill Path er et selvhjelps- og vanebyggingsverktøy. Det er ikke helsehjelp, diagnostikk eller behandling.
         </footer>
       )}
     </>

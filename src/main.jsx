@@ -1,7 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { supabase, hasSupabaseConfig } from './supabaseClient.js';
-import { PROGRAM_DAYS, GOALS, BLOCKERS, getPlanSummary } from './lessonData.js';
+import {
+  GOALS,
+  BLOCKERS,
+  getFilteredCompletions,
+  getMaintenanceItems,
+  getPlanSummary,
+  getProgramDays,
+  getSuggestedJournalPrompts,
+  getTrackMeta,
+  PROGRAM_LENGTH_DAYS
+} from './lessonData.js';
 import './styles.css';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -97,18 +107,17 @@ function AuthPage() {
           <div className="logo-mark">CP</div>
           <span>Chill Path</span>
         </div>
-        <h1>Små daglige steg for mer ro, bedre fokus og lettere gjennomføring.</h1>
+        <h1>Et 28-dagers program for roligere start, bedre fokus og mindre utsettelse.</h1>
         <p>
-          En enkel selvhjelpsapp med startkartlegging, personlig plan, korte daglige økter,
-          refleksjon, vaner og oversikt over fremgangen din.
+          Ta en kort startkartlegging, få et programspor som passer situasjonen din, og bruk 5-12 minutter om dagen på små øvelser, refleksjon, vaner og innsjekk.
         </p>
         <div className="hero-stack">
-          <span>Tre korte økter per dag</span>
-          <span>Daglig refleksjon og innsjekk</span>
-          <span>Rekke og vanelogging</span>
+          <span>Fire ulike programspor</span>
+          <span>Korte daglige økter</span>
+          <span>Journal, vaner og fremgang</span>
         </div>
         <p className="medical-note">
-          Dette er ikke medisinsk rådgivning, diagnostikk eller behandling.
+          Dette er selvhjelp og vanebygging. Det er ikke medisinsk rådgivning, diagnostikk eller behandling.
         </p>
       </section>
 
@@ -175,6 +184,9 @@ function OnboardingPage({ user, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const previewSummary = getPlanSummary({ goals, blockers, energy, focus_minutes: focusMinutes, daily_time: dailyTime, tone });
+  const canPreview = goals.length > 0 || blockers.length > 0 || energy === 'lav';
+
   function toggle(list, setList, id) {
     setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
   }
@@ -195,6 +207,14 @@ function OnboardingPage({ user, onSaved }) {
     if (upsertError) {
       setError(upsertError.message);
     } else {
+      await supabase.from('user_progress').upsert({
+        user_id: user.id,
+        day_index: 0,
+        last_completed_date: null,
+        streak_count: 0,
+        completed_lessons: 0,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
       await onSaved();
       navigate('dashboard');
     }
@@ -205,8 +225,11 @@ function OnboardingPage({ user, onSaved }) {
     <main className="app-shell narrow">
       <section className="card big-card">
         <Badge>Tar ca. 3 minutter</Badge>
-        <h1>Lag en startplan som passer deg</h1>
-        <p>Svarene brukes til å velge en nyttig startretning og gjøre anbefalingene litt mer relevante for deg.</p>
+        <h1>Finn programsporet som passer best nå</h1>
+        <p>
+          Svarene brukes til å velge ett av fire programspor: rolig start, fokus og struktur, ferdig nok eller slutt å utsette.
+          Du kan endre kartleggingen senere, men da starter programmet på nytt.
+        </p>
 
         <div className="question-block">
           <h3>Hva ønsker du mest hjelp med akkurat nå?</h3>
@@ -248,7 +271,7 @@ function OnboardingPage({ user, onSaved }) {
             </select>
           </label>
           <label>
-            Når passer det best?
+            Når passer det best å bruke appen?
             <select value={dailyTime} onChange={(e) => setDailyTime(e.target.value)}>
               <option value="morgen">Morgen</option>
               <option value="formiddag">Formiddag</option>
@@ -266,9 +289,20 @@ function OnboardingPage({ user, onSaved }) {
           </label>
         </div>
 
+        {canPreview && (
+          <div className="preview-card">
+            <span className="track-label">Foreløpig anbefaling</span>
+            <h2>{previewSummary.label}</h2>
+            <p>{previewSummary.description}</p>
+            <ul className="soft-list">
+              {previewSummary.recommendations.map((r) => <li key={r}>{r}</li>)}
+            </ul>
+          </div>
+        )}
+
         {error && <p className="form-message error">{error}</p>}
         <Button onClick={save} disabled={saving || goals.length === 0 || blockers.length === 0}>
-          {saving ? 'Lagrer ...' : 'Gå til dagens plan'}
+          {saving ? 'Lagrer ...' : 'Start 28-dagersprogrammet'}
         </Button>
       </section>
     </main>
@@ -285,26 +319,33 @@ function ProgressRing({ percent }) {
 }
 
 function Dashboard({ data, refresh }) {
-  const currentDayIndex = Math.min(data.progress?.day_index || 0, PROGRAM_DAYS.length - 1);
-  const currentDay = PROGRAM_DAYS[currentDayIndex];
-  const completions = data.completions || [];
-  const completedToday = currentDay.lessons.filter((l) => completions.some((c) => c.lesson_key === l.id));
+  const programDays = getProgramDays(data.onboarding);
+  const currentProgramCompletions = getFilteredCompletions(data.onboarding, data.completions || []);
+  const rawDayIndex = data.progress?.day_index || 0;
+  const isMaintenance = rawDayIndex >= programDays.length;
+  const currentDayIndex = Math.min(rawDayIndex, programDays.length - 1);
+  const currentDay = programDays[currentDayIndex];
+  const completedToday = isMaintenance ? [] : currentDay.lessons.filter((l) => currentProgramCompletions.some((c) => c.lesson_key === l.id));
   const planSummary = getPlanSummary(data.onboarding);
-  const totalLessons = PROGRAM_DAYS.reduce((sum, day) => sum + day.lessons.length, 0);
-  const percent = (completions.length / totalLessons) * 100;
+  const totalLessons = programDays.reduce((sum, day) => sum + day.lessons.length, 0);
+  const percent = isMaintenance ? 100 : (currentProgramCompletions.length / totalLessons) * 100;
   const todayCheckin = data.checkins?.find((c) => c.checkin_date === todayIso());
+
+  if (isMaintenance) {
+    return <MaintenanceDashboard data={data} refresh={refresh} percent={percent} planSummary={planSummary} todayCheckin={todayCheckin} />;
+  }
+
+  const nextLesson = currentDay.lessons.find((l) => !currentProgramCompletions.some((c) => c.lesson_key === l.id)) || currentDay.lessons[0];
 
   return (
     <main className="app-shell">
       <section className="dashboard-grid">
         <div className="card hero-card">
-          <Badge>Dag {currentDayIndex + 1} av {PROGRAM_DAYS.length}</Badge>
+          <Badge>Dag {currentDayIndex + 1} av {programDays.length} · {planSummary.shortName}</Badge>
           <h1>{currentDay.theme}</h1>
           <p>{currentDay.tagline}</p>
           <div className="hero-actions">
-            <Button onClick={() => navigate(`lesson/${currentDay.lessons.find((l) => !completions.some((c) => c.lesson_key === l.id))?.id || currentDay.lessons[0].id}`)}>
-              Fortsett dagens økt
-            </Button>
+            <Button onClick={() => navigate(`lesson/${nextLesson.id}`)}>Fortsett dagens økt</Button>
             <Button variant="ghost" onClick={() => navigate('plan')}>Se hele planen</Button>
           </div>
         </div>
@@ -312,7 +353,7 @@ function Dashboard({ data, refresh }) {
         <div className="card metric-card">
           <ProgressRing percent={percent} />
           <h3>Samlet fremgang</h3>
-          <p>{completions.length} av {totalLessons} leksjoner fullført</p>
+          <p>{currentProgramCompletions.length} av {totalLessons} økter fullført</p>
         </div>
 
         <div className="card metric-card">
@@ -326,35 +367,86 @@ function Dashboard({ data, refresh }) {
         <div className="card">
           <div className="section-heading">
             <div>
-              <h2>Dagens tre korte økter</h2>
-              <p>{completedToday.length}/3 fullført</p>
+              <h2>Dagens korte økter</h2>
+              <p>{completedToday.length}/{currentDay.lessons.length} fullført</p>
             </div>
           </div>
           <div className="lesson-list">
             {currentDay.lessons.map((lesson) => (
-              <LessonRow key={lesson.id} lesson={lesson} completed={completions.some((c) => c.lesson_key === lesson.id)} />
+              <LessonRow key={lesson.id} lesson={lesson} completed={currentProgramCompletions.some((c) => c.lesson_key === lesson.id)} />
             ))}
           </div>
         </div>
 
-        <div className="card">
-          <div className="section-heading">
-            <div>
-              <h2>{planSummary.label}</h2>
-              <p>{planSummary.description}</p>
-            </div>
-          </div>
-          <ul className="soft-list">
-            {planSummary.recommendations.map((r) => <li key={r}>{r}</li>)}
-          </ul>
-          <div className="small-note">
-            Fokusøkt: {data.onboarding?.focus_minutes || 15} min · Beste tidspunkt: {data.onboarding?.daily_time || 'morgen'}
-          </div>
-        </div>
-
+        <PlanSummaryCard data={data} planSummary={planSummary} />
         <CheckinCard todayCheckin={todayCheckin} userId={data.user.id} refresh={refresh} />
       </section>
     </main>
+  );
+}
+
+function MaintenanceDashboard({ data, refresh, percent, planSummary, todayCheckin }) {
+  const maintenanceItems = getMaintenanceItems(data.onboarding);
+  return (
+    <main className="app-shell">
+      <section className="dashboard-grid">
+        <div className="card hero-card">
+          <Badge>Vedlikeholdsmodus · {planSummary.shortName}</Badge>
+          <h1>Programmet er fullført</h1>
+          <p>
+            Nå er målet å bruke de få grepene som faktisk hjalp. Fortsett med ukentlig gjennomgang,
+            små vaner og journal når du trenger det.
+          </p>
+          <div className="hero-actions">
+            <Button onClick={() => navigate('habits')}>Logg vaner</Button>
+            <Button variant="ghost" onClick={() => navigate('journal')}>Skriv journal</Button>
+          </div>
+        </div>
+        <div className="card metric-card">
+          <ProgressRing percent={percent} />
+          <h3>28 dager fullført</h3>
+          <p>Du kan fortsette med vedlikehold eller ta startkartleggingen på nytt.</p>
+        </div>
+        <div className="card metric-card">
+          <div className="streak-number">{data.progress?.streak_count || 0}</div>
+          <h3>Rekke</h3>
+          <p>dager med fullført dagsopplegg under programmet</p>
+        </div>
+      </section>
+
+      <section className="content-grid">
+        <div className="card">
+          <h2>Vedlikehold fremover</h2>
+          <ul className="soft-list">
+            {maintenanceItems.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+          <Button variant="ghost" onClick={() => navigate('plan')}>Se programmet igjen</Button>
+        </div>
+        <PlanSummaryCard data={data} planSummary={planSummary} />
+        <CheckinCard todayCheckin={todayCheckin} userId={data.user.id} refresh={refresh} />
+      </section>
+    </main>
+  );
+}
+
+function PlanSummaryCard({ data, planSummary }) {
+  return (
+    <div className="card">
+      <div className="section-heading">
+        <div>
+          <span className="track-label">Ditt spor</span>
+          <h2>{planSummary.label}</h2>
+          <p>{planSummary.whyThisFits}</p>
+        </div>
+      </div>
+      <ul className="soft-list">
+        {planSummary.recommendations.map((r) => <li key={r}>{r}</li>)}
+      </ul>
+      <div className="small-note">
+        Fokusøkt: {data.onboarding?.focus_minutes || 15} min · Beste tidspunkt: {data.onboarding?.daily_time || 'morgen'}
+      </div>
+      <button className="text-button" onClick={() => navigate('onboarding')}>Endre startkartlegging</button>
+    </div>
   );
 }
 
@@ -407,30 +499,59 @@ function CheckinCard({ todayCheckin, userId, refresh }) {
         <label>Fokus <input type="range" min="1" max="5" value={focus} onChange={(e) => setFocus(Number(e.target.value))} /> <b>{focus}</b></label>
       </div>
       <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Skriv kort hva som kan gjøre dagen litt lettere." />
+      {mood <= 1 && (
+        <div className="safety-note">
+          <strong>Hvis dette handler om akutt fare eller tanker om å skade deg selv:</strong>
+          <p>Bruk ikke appen alene. Kontakt noen du stoler på, fastlege eller legevakt. I Norge: ring 113 ved akutt fare eller 116 117 for legevakt.</p>
+        </div>
+      )}
       <Button onClick={save} disabled={saving}>{saving ? 'Lagrer ...' : todayCheckin ? 'Oppdater innsjekk' : 'Lagre innsjekk'}</Button>
     </div>
   );
 }
 
 function PlanPage({ data }) {
-  const completions = data.completions || [];
+  const programDays = getProgramDays(data.onboarding);
+  const completions = getFilteredCompletions(data.onboarding, data.completions || []);
+  const planSummary = getPlanSummary(data.onboarding);
+  const activeDayIndex = Math.min(data.progress?.day_index || 0, programDays.length - 1);
+
   return (
     <main className="app-shell">
       <section className="card big-card">
-        <Badge>14-dagers program</Badge>
+        <Badge>{PROGRAM_LENGTH_DAYS}-dagers program · {planSummary.shortName}</Badge>
         <h1>Din plan</h1>
-        <p>Du kan se hele programmet her. Dagen du er på nå er markert.</p>
+        <p>
+          Programmet er valgt ut fra startkartleggingen din. Hver dag har korte økter som skal være små nok til å gjennomføre,
+          men konkrete nok til å gi trening over tid.
+        </p>
+
+        <div className="program-intro">
+          <div>
+            <span className="track-label">Hvorfor dette sporet?</span>
+            <h2>{planSummary.label}</h2>
+            <p>{planSummary.description}</p>
+            <p>{planSummary.whyThisFits}</p>
+          </div>
+          <div>
+            <span className="track-label">Bygger særlig på</span>
+            <ul className="basis-list">
+              {planSummary.basis.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+        </div>
+
         <div className="day-grid">
-          {PROGRAM_DAYS.map((day, dayIndex) => {
+          {programDays.map((day, dayIndex) => {
             const done = day.lessons.filter((l) => completions.some((c) => c.lesson_key === l.id)).length;
-            const active = dayIndex === (data.progress?.day_index || 0);
+            const active = dayIndex === activeDayIndex && (data.progress?.day_index || 0) < programDays.length;
             return (
               <div className={active ? 'day-card active' : 'day-card'} key={day.theme}>
                 <span>Dag {dayIndex + 1}</span>
                 <h3>{day.theme}</h3>
                 <p>{day.tagline}</p>
                 <div className="mini-progress"><i style={{ width: `${(done / day.lessons.length) * 100}%` }} /></div>
-                <button onClick={() => navigate(`lesson/${day.lessons[0].id}`)}>{done}/3 · åpne</button>
+                <button onClick={() => navigate(`lesson/${day.lessons[0].id}`)}>{done}/{day.lessons.length} · åpne</button>
               </div>
             );
           })}
@@ -441,14 +562,16 @@ function PlanPage({ data }) {
 }
 
 function LessonPage({ lessonId, data, refresh }) {
-  const dayIndex = PROGRAM_DAYS.findIndex((day) => day.lessons.some((l) => l.id === lessonId));
-  const day = PROGRAM_DAYS[dayIndex] || PROGRAM_DAYS[0];
+  const programDays = getProgramDays(data.onboarding);
+  const dayIndex = programDays.findIndex((day) => day.lessons.some((l) => l.id === lessonId));
+  const day = programDays[dayIndex] || programDays[0];
   const lesson = day.lessons.find((l) => l.id === lessonId) || day.lessons[0];
   const existing = data.completions?.find((c) => c.lesson_key === lesson.id);
   const [answer, setAnswer] = useState(existing?.quiz_answer || '');
   const [reflection, setReflection] = useState(existing?.reflection || '');
   const [saving, setSaving] = useState(false);
-  const nextLesson = getNextLesson(lesson.id);
+  const lessonIndexInDay = day.lessons.findIndex((l) => l.id === lesson.id);
+  const nextLessonSameDay = lessonIndexInDay >= 0 ? day.lessons[lessonIndexInDay + 1] : null;
 
   useEffect(() => {
     setAnswer(existing?.quiz_answer || '');
@@ -465,7 +588,8 @@ function LessonPage({ lessonId, data, refresh }) {
       reflection
     }, { onConflict: 'user_id,lesson_key' });
 
-    const updatedCompletions = [...(data.completions || []).filter((c) => c.lesson_key !== lesson.id), { lesson_key: lesson.id, day_index: dayIndex }];
+    const currentProgramCompletions = getFilteredCompletions(data.onboarding, data.completions || []);
+    const updatedCompletions = [...currentProgramCompletions.filter((c) => c.lesson_key !== lesson.id), { lesson_key: lesson.id, day_index: dayIndex }];
     const doneInDay = day.lessons.filter((l) => updatedCompletions.some((c) => c.lesson_key === l.id)).length;
     const currentProgress = data.progress || { day_index: 0, streak_count: 0, completed_lessons: 0 };
     const shouldAdvance = doneInDay === day.lessons.length && dayIndex >= currentProgress.day_index;
@@ -479,7 +603,7 @@ function LessonPage({ lessonId, data, refresh }) {
 
     await supabase.from('user_progress').upsert({
       user_id: data.user.id,
-      day_index: shouldAdvance ? Math.min(dayIndex + 1, PROGRAM_DAYS.length - 1) : currentProgress.day_index,
+      day_index: shouldAdvance ? Math.min(dayIndex + 1, programDays.length) : currentProgress.day_index,
       last_completed_date: shouldAdvance ? todayIso() : currentProgress.last_completed_date,
       streak_count: streak,
       completed_lessons: updatedCompletions.length,
@@ -488,7 +612,7 @@ function LessonPage({ lessonId, data, refresh }) {
 
     await refresh();
     setSaving(false);
-    if (nextLesson) navigate(`lesson/${nextLesson.id}`);
+    if (nextLessonSameDay) navigate(`lesson/${nextLessonSameDay.id}`);
     else navigate('dashboard');
   }
 
@@ -496,7 +620,7 @@ function LessonPage({ lessonId, data, refresh }) {
     <main className="app-shell narrow">
       <section className="card lesson-page-card">
         <div className="lesson-kicker">
-          <Badge>Dag {dayIndex + 1}</Badge>
+          <Badge>Dag {dayIndex + 1} av {programDays.length}</Badge>
           <span>{lesson.minutes} minutter</span>
         </div>
         <h1>{lesson.title}</h1>
@@ -525,7 +649,7 @@ function LessonPage({ lessonId, data, refresh }) {
 
         <div className="hero-actions">
           <Button onClick={complete} disabled={saving || !answer || reflection.trim().length < 3}>
-            {saving ? 'Lagrer ...' : existing ? 'Lagre endringer og gå videre' : 'Fullfør økten'}
+            {saving ? 'Lagrer ...' : existing ? 'Lagre endringer' : nextLessonSameDay ? 'Fullfør og fortsett' : 'Fullfør dagen'}
           </Button>
           <Button variant="ghost" onClick={() => navigate('dashboard')}>Tilbake til i dag</Button>
         </div>
@@ -534,16 +658,15 @@ function LessonPage({ lessonId, data, refresh }) {
   );
 }
 
-function getNextLesson(currentId) {
-  const all = PROGRAM_DAYS.flatMap((day) => day.lessons);
-  const i = all.findIndex((l) => l.id === currentId);
-  return i >= 0 ? all[i + 1] : null;
-}
-
 function JournalPage({ data, refresh }) {
+  const prompts = getSuggestedJournalPrompts(data.onboarding);
   const [body, setBody] = useState('');
-  const [journalPrompt, setJournalPrompt] = useState('Hva la jeg merke til i dag?');
+  const [journalPrompt, setJournalPrompt] = useState(prompts[0] || 'Hva la jeg merke til i dag?');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setJournalPrompt(prompts[0] || 'Hva la jeg merke til i dag?');
+  }, [data.onboarding?.id]);
 
   async function save() {
     if (!body.trim()) return;
@@ -563,13 +686,11 @@ function JournalPage({ data, refresh }) {
       <section className="content-grid journal-grid">
         <div className="card">
           <h1>Journal</h1>
+          <p>Bruk journalen til korte notater. Et par setninger er nok.</p>
           <label>
             Skrivespørsmål
             <select value={journalPrompt} onChange={(e) => setJournalPrompt(e.target.value)}>
-              <option>Hva la jeg merke til i dag?</option>
-              <option>Hva gjorde starten lettere?</option>
-              <option>Hva stoppet meg, og hva kan justeres?</option>
-              <option>Hva er én liten seier fra i dag?</option>
+              {prompts.map((prompt) => <option key={prompt}>{prompt}</option>)}
             </select>
           </label>
           <textarea className="journal-input" value={body} onChange={(e) => setBody(e.target.value)} placeholder="Skriv fritt. Et par setninger er nok." />

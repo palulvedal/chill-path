@@ -722,3 +722,69 @@ textarea {
     letter-spacing: -0.045em;
   }
 }
+
+.preview-card, .program-intro, .safety-note {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.48);
+  padding: 1.1rem;
+  margin: 1.2rem 0;
+}
+
+.program-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.track-label {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid rgba(124, 191, 177, 0.35);
+  color: #40685f;
+  background: rgba(124, 191, 177, 0.16);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 850;
+  margin-bottom: 0.65rem;
+}
+
+.basis-list {
+  display: grid;
+  gap: 0.7rem;
+  padding-left: 1.2rem;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.safety-note {
+  background: rgba(242, 143, 107, 0.12);
+  border-color: rgba(242, 143, 107, 0.32);
+}
+
+.safety-note p {
+  margin-bottom: 0;
+}
+
+.day-card button, .text-button {
+  border: 0;
+  background: transparent;
+  color: #231f20;
+  font-weight: 800;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.card .text-button {
+  margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .program-intro {
+    grid-template-columns: 1fr;
+  }
+}

@@ -7,16 +7,26 @@ Dette er en Chillio-inspirert, men ikke-kopiert, selvhjelps-/vanebyggingsapp. De
 - Row Level Security, slik at hver bruker kun får tilgang til egne data
 - Cloudflare Pages som frontend-hosting
 - Vite + React som frontend
-- Startkartlegging
-- Personlig planoppsummering
-- 14-dagers program med 3 mini-leksjoner per dag
-- Quiz/refleksjon per leksjon
-- Daglig innsjekk
-- Journal
+- Startkartlegging som velger programspor
+- Fire 28-dagers programspor:
+  - Kom i gang rolig
+  - Fokus og struktur
+  - Ferdig er bedre enn perfekt
+  - Slutt å utsette
+- Korte daglige økter med refleksjon/quiz
+- Daglig innsjekk for humør, energi og fokus
+- Journalspørsmål som tilpasses programsporet
 - Vaner og daglig vanelogging
 - Rekke/fremgang
+- Vedlikeholdsmodus etter fullført program
 
 Appen er ikke ment som medisinsk rådgivning, diagnostikk eller behandling.
+
+## Viktig ved oppdatering fra forrige versjon
+
+Denne versjonen bruker samme Supabase-tabeller som forrige versjon. Du trenger normalt **ikke** kjøre en database-migrering hvis du allerede har kjørt `supabase/schema.sql` tidligere.
+
+Programinnholdet er endret fra ett felles 14-dagersprogram til fire ulike 28-dagersspor. Eksisterende brukere kan derfor oppleve at leksjonsfremgangen starter på nytt for det nye sporet. Journal, vaner og innsjekker beholdes.
 
 ## 1. Opprett Supabase-prosjekt
 
@@ -54,7 +64,7 @@ npm run dev
 2. Gå til **Cloudflare → Workers & Pages → Create → Pages**.
 3. Koble til GitHub-repoet.
 4. Velg:
-   - Framework preset: `Vite`
+   - Framework preset: `Vite` eller `React (Vite)`
    - Build command: `npm run build`
    - Build output directory: `dist`
 5. Legg inn miljøvariabler under **Settings → Environment variables**:
@@ -80,7 +90,7 @@ I Supabase kan du justere:
 SQL-filen lager disse tabellene:
 
 - `profiles`
-- `startkartlegging_answers`
+- `onboarding_answers`
 - `user_progress`
 - `lesson_completions`
 - `daily_checkins`
@@ -97,7 +107,7 @@ Mulige neste steg:
 - Adminside for å redigere leksjoner i Supabase i stedet for hardkodet innhold i `lessonData.js`
 - Betaling med Stripe eller Lemon Squeezy
 - E-postpåminnelser med Supabase Edge Functions eller Cloudflare Workers Cron Triggers
-- Mer avansert personalisering av programmet basert på startkartlegging
+- Mer avansert personalisering, for eksempel sekundærspor og adaptive dagsoppgaver
 - Graf over humør/energi/fokus over tid
 - Eksport av journal til CSV/PDF
 - PWA-støtte slik at den kan installeres på mobilhjemskjermen
@@ -106,7 +116,7 @@ Mulige neste steg:
 
 ```text
 src/main.jsx              App, sider, Supabase-kall og navigasjon
-src/lessonData.js         14-dagers program og personaliseringslogikk
+src/lessonData.js         28-dagers programspor og personaliseringslogikk
 src/styles.css            Design
 src/supabaseClient.js     Supabase-klient
 supabase/schema.sql       Database og RLS

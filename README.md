@@ -17,6 +17,10 @@ Dette er en Chillio-inspirert, men ikke-kopiert, selvhjelps-/vanebyggingsapp. De
 - Daglig innsjekk for humør, energi og fokus
 - Journalspørsmål som tilpasses programsporet
 - Vaner og daglig vanelogging
+- Dagens plan med første steg, starttid, hindring og hvis-så-plan
+- Parkeringsliste for distraksjoner og løse oppgaver
+- Ukentlig oversikt, enkel mønsteroversikt og ukentlig gjennomgang
+- Mild start-igjen-flyt når brukeren har vært borte noen dager
 - Rekke/fremgang
 - Vedlikeholdsmodus etter fullført program
 
@@ -24,9 +28,15 @@ Appen er ikke ment som medisinsk rådgivning, diagnostikk eller behandling.
 
 ## Viktig ved oppdatering fra forrige versjon
 
-Denne versjonen bruker samme Supabase-tabeller som forrige versjon. Du trenger normalt **ikke** kjøre en database-migrering hvis du allerede har kjørt `supabase/schema.sql` tidligere.
+Denne versjonen legger til tre nye Supabase-tabeller:
 
-Programinnholdet er endret fra ett felles 14-dagersprogram til fire ulike 28-dagersspor. Eksisterende brukere kan derfor oppleve at leksjonsfremgangen starter på nytt for det nye sporet. Journal, vaner og innsjekker beholdes.
+- `daily_plans`
+- `parking_items`
+- `weekly_reviews`
+
+Hvis du allerede har kjørt en eldre versjon av `supabase/schema.sql`, trenger du bare å kjøre `supabase/upgrade_oversikt.sql` én gang i Supabase SQL Editor. Hvis du lager et helt nytt Supabase-prosjekt, kan du kjøre hele `supabase/schema.sql`.
+
+Programinnholdet er fortsatt fire ulike 28-dagersspor. Eksisterende journal, vaner, innsjekker og leksjonsfremgang beholdes. Nye oversiktsfunksjoner begynner å samle data fra den dagen brukeren tar dem i bruk.
 
 ## 1. Opprett Supabase-prosjekt
 
@@ -97,6 +107,9 @@ SQL-filen lager disse tabellene:
 - `journal_entries`
 - `habits`
 - `habit_logs`
+- `daily_plans`
+- `parking_items`
+- `weekly_reviews`
 
 Alle tabeller har Row Level Security aktivert.
 
@@ -120,5 +133,6 @@ src/lessonData.js         28-dagers programspor og personaliseringslogikk
 src/styles.css            Design
 src/supabaseClient.js     Supabase-klient
 supabase/schema.sql       Database og RLS
+supabase/upgrade_oversikt.sql  Migrering for eksisterende Supabase-prosjekt
 public/_redirects         Cloudflare Pages SPA fallback
 ```

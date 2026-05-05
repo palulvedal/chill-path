@@ -4073,3 +4073,71 @@ export function getSuggestedJournalPrompts(onboarding) {
 export function getMaintenanceItems(onboarding) {
   return getTrackMeta(onboarding).maintenance;
 }
+
+
+export function getPlanningGuidance(onboarding) {
+  const key = getTrackKey(onboarding);
+  const guidance = {
+    calm_start: {
+      title: 'Energivennlig plan',
+      intro: 'Velg en plan som også fungerer hvis dagen blir tyngre enn forventet.',
+      mainLabel: 'Én liten ting jeg vil få gjort',
+      stepLabel: 'Minste nyttige første steg',
+      timeLabel: 'Når passer det best med energien min?',
+      durationLabel: 'Hvor lenge skal jeg prøve?',
+      obstacleLabel: 'Hva kan gjøre dette tungt?',
+      ifThenLabel: 'Lavenergiplan: hvis det blir tungt, så ...',
+      doneLabel: 'Dette teller som nok i dag',
+      lowEnergyLabel: 'Ekstra lavenergiversjon',
+      mainPlaceholder: 'F.eks. rydde én flate, sende én melding, gå fem minutter',
+      stepPlaceholder: 'F.eks. åpne dokumentet, sette frem skoene, hente én ting',
+      donePlaceholder: 'F.eks. to minutter er nok, én liten del er nok'
+    },
+    focus_structure: {
+      title: 'Fokusplan',
+      intro: 'Få oppgaven ut av hodet og inn i en liten, synlig fokusblokk.',
+      mainLabel: 'Én fokusoppgave',
+      stepLabel: 'Neste synlige handling',
+      timeLabel: 'Når starter fokusblokken?',
+      durationLabel: 'Lengde på fokusblokken',
+      obstacleLabel: 'Vanligste distraksjon',
+      ifThenLabel: 'Hvis jeg blir distrahert, så ...',
+      doneLabel: 'Ferdig når denne konkrete delen er gjort',
+      lowEnergyLabel: 'Kortversjon hvis fokus glipper',
+      mainPlaceholder: 'F.eks. skrive første avsnitt, betale regning, sortere e-post',
+      stepPlaceholder: 'F.eks. lukke andre faner og åpne riktig dokument',
+      donePlaceholder: 'F.eks. avsnittet er grovskrevet eller fem e-poster er behandlet'
+    },
+    good_enough: {
+      title: 'Godt-nok-plan',
+      intro: 'Definer stoppunktet før du starter, slik at planen ikke vokser mens du jobber.',
+      mainLabel: 'Én ting jeg vil gjøre ferdig nok',
+      stepLabel: 'Første lille steg',
+      timeLabel: 'Når starter jeg?',
+      durationLabel: 'Maks tid før jeg stopper og vurderer',
+      obstacleLabel: 'Hva kan få meg til å overarbeide?',
+      ifThenLabel: 'Hvis jeg vil perfeksjonere, så ...',
+      doneLabel: 'Godt nok betyr konkret',
+      lowEnergyLabel: 'Minimumsleveranse',
+      mainPlaceholder: 'F.eks. sende utkast, rydde grovt, levere første versjon',
+      stepPlaceholder: 'F.eks. skrive stygg førsteversjon i fem minutter',
+      donePlaceholder: 'F.eks. forståelig, sendt, eller klart til tilbakemelding'
+    },
+    stop_postponing: {
+      title: 'Startplan',
+      intro: 'Gjør oppgaven så konkret at du kan starte før motivasjonen kommer.',
+      mainLabel: 'Én oppgave jeg ofte utsetter',
+      stepLabel: 'Første synlige handling',
+      timeLabel: 'Når starter jeg?',
+      durationLabel: 'Hvor lenge skal første forsøk vare?',
+      obstacleLabel: 'Hva pleier jeg å unngå?',
+      ifThenLabel: 'Hvis jeg får lyst til å utsette, så ...',
+      doneLabel: 'Første forsøk teller som fullført når',
+      lowEnergyLabel: 'To-minuttersversjon',
+      mainPlaceholder: 'F.eks. bestille time, starte rapporten, rydde papirer',
+      stepPlaceholder: 'F.eks. åpne nettsiden, skrive overskrift, finne frem fakturaen',
+      donePlaceholder: 'F.eks. jeg har jobbet fem minutter eller sendt én melding'
+    }
+  };
+  return guidance[key] || guidance.stop_postponing;
+}

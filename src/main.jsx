@@ -7,6 +7,7 @@ import {
   getFilteredCompletions,
   getMaintenanceItems,
   getPlanSummary,
+  getPlanningGuidance,
   getProgramDays,
   getSuggestedJournalPrompts,
   getTrackMeta,
@@ -21,6 +22,46 @@ function yesterdayIso() {
   d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0, 10);
 }
+
+
+function parseIsoDate(value) {
+  if (!value) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function addDaysIso(value, days) {
+  const d = parseIsoDate(value) || new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function daysBetweenIso(from, to) {
+  const a = parseIsoDate(from);
+  const b = parseIsoDate(to);
+  if (!a || !b) return null;
+  return Math.floor((b - a) / (1000 * 60 * 60 * 24));
+}
+
+function weekStartIso(value = todayIso()) {
+  const d = parseIsoDate(value) || new Date();
+  const day = d.getDay(); // 0 = Sunday, 1 = Monday
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatDateShort(value) {
+  if (!value) return '';
+  return new Date(value + 'T00:00:00').toLocaleDateString('no-NO', { day: '2-digit', month: 'short' });
+}
+
+function average(values) {
+  const nums = values.filter((v) => typeof v === 'number' && !Number.isNaN(v));
+  if (!nums.length) return null;
+  return nums.reduce((sum, value) => sum + value, 0) / nums.length;
+}
+
 
 function getHashRoute() {
   const hash = window.location.hash.replace(/^#\/?/, '');
@@ -163,6 +204,8 @@ function TopNav({ user, profile }) {
       <nav>
         <button onClick={() => navigate('dashboard')}>I dag</button>
         <button onClick={() => navigate('plan')}>Hele planen</button>
+        <button onClick={() => navigate('overview')}>Oversikt</button>
+        <button onClick={() => navigate('parking')}>Parkeringsliste</button>
         <button onClick={() => navigate('habits')}>Vaner</button>
         <button onClick={() => navigate('journal')}>Journal</button>
       </nav>
@@ -330,6 +373,9 @@ function Dashboard({ data, refresh }) {
   const totalLessons = programDays.reduce((sum, day) => sum + day.lessons.length, 0);
   const percent = isMaintenance ? 100 : (currentProgramCompletions.length / totalLessons) * 100;
   const todayCheckin = data.checkins?.find((c) => c.checkin_date === todayIso());
+  const lastCompletedDate = data.progress?.last_completed_date;
+  const gapDays = lastCompletedDate ? daysBetweenIso(lastCompletedDate, todayIso()) : null;
+  const showStartAgain = !isMaintenance && rawDayIndex > 0 && gapDays !== null && gapDays >= 2;
 
   if (isMaintenance) {
     return <MaintenanceDashboard data={data} refresh={refresh} percent={percent} planSummary={planSummary} todayCheckin={todayCheckin} />;
@@ -363,7 +409,9 @@ function Dashboard({ data, refresh }) {
         </div>
       </section>
 
-      <section className="content-grid">
+      {showStartAgain && <StartAgainCard data={data} nextLesson={nextLesson} gapDays={gapDays} />}
+
+      <section className="content-grid main-dashboard-grid">
         <div className="card">
           <div className="section-heading">
             <div>
@@ -380,6 +428,12 @@ function Dashboard({ data, refresh }) {
 
         <PlanSummaryCard data={data} planSummary={planSummary} />
         <CheckinCard todayCheckin={todayCheckin} userId={data.user.id} refresh={refresh} />
+      </section>
+
+      <section className="tool-grid">
+        <DailyPlanCard data={data} refresh={refresh} />
+        <ParkingListCard data={data} refresh={refresh} compact />
+        <WeeklySnapshotCard data={data} />
       </section>
     </main>
   );
@@ -414,7 +468,7 @@ function MaintenanceDashboard({ data, refresh, percent, planSummary, todayChecki
         </div>
       </section>
 
-      <section className="content-grid">
+      <section className="content-grid main-dashboard-grid">
         <div className="card">
           <h2>Vedlikehold fremover</h2>
           <ul className="soft-list">
@@ -424,6 +478,12 @@ function MaintenanceDashboard({ data, refresh, percent, planSummary, todayChecki
         </div>
         <PlanSummaryCard data={data} planSummary={planSummary} />
         <CheckinCard todayCheckin={todayCheckin} userId={data.user.id} refresh={refresh} />
+      </section>
+
+      <section className="tool-grid">
+        <DailyPlanCard data={data} refresh={refresh} />
+        <ParkingListCard data={data} refresh={refresh} compact />
+        <WeeklySnapshotCard data={data} />
       </section>
     </main>
   );
@@ -509,6 +569,426 @@ function CheckinCard({ todayCheckin, userId, refresh }) {
     </div>
   );
 }
+
+
+function StartAgainCard({ data, nextLesson, gapDays }) {
+  const daysText = gapDays === 2 ? 'to dager' : `${gapDays} dager`;
+  return (
+    <section className="card restart-card">
+      <div>
+        <Badge>Start rolig igjen</Badge>
+        <h2>Det har gått {daysText} siden sist fullførte dag</h2>
+        <p>
+          Det betyr ikke at du har mislyktes. Velg en mild restart: gjør en kort økt, lag en ny plan for i dag,
+          eller parker det som fyller hodet før du fortsetter.
+        </p>
+      </div>
+      <div className="hero-actions">
+        <Button onClick={() => navigate(`lesson/${nextLesson.id}`)}>Gjør neste korte økt</Button>
+        <Button variant="ghost" onClick={() => document.getElementById('daily-plan-card')?.scrollIntoView({ behavior: 'smooth' })}>Lag dagens plan</Button>
+        <Button variant="ghost" onClick={() => navigate('parking')}>Tøm hodet først</Button>
+      </div>
+    </section>
+  );
+}
+
+function DailyPlanCard({ data, refresh }) {
+  const guidance = getPlanningGuidance(data.onboarding);
+  const existing = (data.dailyPlans || []).find((plan) => plan.plan_date === todayIso());
+  const [mainTask, setMainTask] = useState(existing?.main_task || '');
+  const [firstStep, setFirstStep] = useState(existing?.first_step || '');
+  const [startTime, setStartTime] = useState(existing?.start_time ? existing.start_time.slice(0, 5) : '');
+  const [durationMinutes, setDurationMinutes] = useState(existing?.duration_minutes || data.onboarding?.focus_minutes || 15);
+  const [obstacle, setObstacle] = useState(existing?.obstacle || '');
+  const [ifThen, setIfThen] = useState(existing?.if_then || '');
+  const [doneEnough, setDoneEnough] = useState(existing?.done_enough || '');
+  const [lowEnergyVersion, setLowEnergyVersion] = useState(existing?.low_energy_version || '');
+  const [completed, setCompleted] = useState(existing?.completed || false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    setMainTask(existing?.main_task || '');
+    setFirstStep(existing?.first_step || '');
+    setStartTime(existing?.start_time ? existing.start_time.slice(0, 5) : '');
+    setDurationMinutes(existing?.duration_minutes || data.onboarding?.focus_minutes || 15);
+    setObstacle(existing?.obstacle || '');
+    setIfThen(existing?.if_then || '');
+    setDoneEnough(existing?.done_enough || '');
+    setLowEnergyVersion(existing?.low_energy_version || '');
+    setCompleted(existing?.completed || false);
+  }, [existing?.id, data.onboarding?.focus_minutes]);
+
+  async function savePlan(nextCompleted = completed) {
+    setSaving(true);
+    setMessage('');
+    const { error } = await supabase.from('daily_plans').upsert({
+      user_id: data.user.id,
+      plan_date: todayIso(),
+      main_task: mainTask.trim(),
+      first_step: firstStep.trim(),
+      start_time: startTime || null,
+      duration_minutes: Number(durationMinutes) || null,
+      obstacle: obstacle.trim(),
+      if_then: ifThen.trim(),
+      done_enough: doneEnough.trim(),
+      low_energy_version: lowEnergyVersion.trim(),
+      completed: nextCompleted,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,plan_date' });
+
+    if (error) {
+      setMessage(`Kunne ikke lagre. Har du kjørt den nye SQL-migreringen? (${error.message})`);
+    } else {
+      setMessage(nextCompleted ? 'Planen er markert som gjort.' : 'Dagens plan er lagret.');
+      await refresh();
+    }
+    setSaving(false);
+  }
+
+  async function toggleCompleted() {
+    const next = !completed;
+    setCompleted(next);
+    await savePlan(next);
+  }
+
+  return (
+    <div className="card daily-plan-card" id="daily-plan-card">
+      <div className="section-heading">
+        <div>
+          <span className="track-label">Dagens plan</span>
+          <h2>{guidance.title}</h2>
+          <p>{guidance.intro}</p>
+        </div>
+        {existing && <span className={completed ? 'status done' : 'status'}>{completed ? 'Gjort' : 'Planlagt'}</span>}
+      </div>
+
+      <div className="plan-form-grid">
+        <label>
+          {guidance.mainLabel}
+          <input value={mainTask} onChange={(e) => setMainTask(e.target.value)} placeholder={guidance.mainPlaceholder} />
+        </label>
+        <label>
+          {guidance.stepLabel}
+          <input value={firstStep} onChange={(e) => setFirstStep(e.target.value)} placeholder={guidance.stepPlaceholder} />
+        </label>
+        <label>
+          {guidance.timeLabel}
+          <input type="time" value={startTime || ''} onChange={(e) => setStartTime(e.target.value)} />
+        </label>
+        <label>
+          {guidance.durationLabel}
+          <select value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))}>
+            {[5, 10, 15, 25, 45, 60].map((m) => <option key={m} value={m}>{m} minutter</option>)}
+          </select>
+        </label>
+        <label>
+          {guidance.obstacleLabel}
+          <input value={obstacle} onChange={(e) => setObstacle(e.target.value)} placeholder="F.eks. telefon, usikkerhet, lav energi eller for mange valg" />
+        </label>
+        <label>
+          {guidance.ifThenLabel}
+          <input value={ifThen} onChange={(e) => setIfThen(e.target.value)} placeholder="F.eks. tar jeg to minutter, parkerer distraksjonen eller ber om hjelp" />
+        </label>
+        <label>
+          {guidance.doneLabel}
+          <input value={doneEnough} onChange={(e) => setDoneEnough(e.target.value)} placeholder={guidance.donePlaceholder} />
+        </label>
+        <label>
+          {guidance.lowEnergyLabel}
+          <input value={lowEnergyVersion} onChange={(e) => setLowEnergyVersion(e.target.value)} placeholder="Hva er minste versjon som fortsatt teller litt?" />
+        </label>
+      </div>
+
+      {message && <p className={message.startsWith('Kunne') ? 'form-message error' : 'form-message'}>{message}</p>}
+      <div className="hero-actions">
+        <Button onClick={() => savePlan(completed)} disabled={saving || !mainTask.trim() || !firstStep.trim()}>{saving ? 'Lagrer ...' : existing ? 'Oppdater dagens plan' : 'Lagre dagens plan'}</Button>
+        <Button variant="ghost" onClick={toggleCompleted} disabled={saving || !mainTask.trim()}>{completed ? 'Marker som ikke gjort' : 'Marker som gjort'}</Button>
+      </div>
+    </div>
+  );
+}
+
+function ParkingListCard({ data, refresh, compact = false }) {
+  const [title, setTitle] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const openItems = (data.parkingItems || []).filter((item) => item.status === 'open');
+  const visibleItems = compact ? openItems.slice(0, 5) : openItems;
+
+  async function addItem(e) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setSaving(true);
+    setMessage('');
+    const { error } = await supabase.from('parking_items').insert({
+      user_id: data.user.id,
+      title: title.trim(),
+      note: note.trim(),
+      status: 'open'
+    });
+    if (error) setMessage(`Kunne ikke lagre. Har du kjørt den nye SQL-migreringen? (${error.message})`);
+    else {
+      setTitle('');
+      setNote('');
+      await refresh();
+    }
+    setSaving(false);
+  }
+
+  async function setStatus(item, status) {
+    await supabase.from('parking_items').update({ status, updated_at: new Date().toISOString() }).eq('id', item.id);
+    await refresh();
+  }
+
+  async function useInDailyPlan(item) {
+    const { error } = await supabase.from('daily_plans').upsert({
+      user_id: data.user.id,
+      plan_date: todayIso(),
+      main_task: item.title,
+      first_step: item.note || 'Skriv første lille steg her',
+      duration_minutes: data.onboarding?.focus_minutes || 15,
+      completed: false,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,plan_date' });
+    if (!error) {
+      await setStatus(item, 'planned');
+      navigate('dashboard');
+      setTimeout(() => document.getElementById('daily-plan-card')?.scrollIntoView({ behavior: 'smooth' }), 80);
+    } else {
+      setMessage(error.message);
+    }
+  }
+
+  return (
+    <div className="card parking-card">
+      <div className="section-heading">
+        <div>
+          <span className="track-label">Parkeringsliste</span>
+          <h2>Tøm hodet uten å gjøre alt nå</h2>
+          <p>Skriv ned ting som dukker opp. Senere kan du velge om noe skal inn i dagens plan.</p>
+        </div>
+        {compact && <button className="text-button" onClick={() => navigate('parking')}>Åpne liste</button>}
+      </div>
+
+      <form className="parking-form" onSubmit={addItem}>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="F.eks. sjekke faktura, svare på e-post, kjøpe gave" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Valgfritt: første steg eller kontekst" />
+        <Button disabled={saving || !title.trim()}>{saving ? 'Lagrer ...' : 'Parker'}</Button>
+      </form>
+      {message && <p className="form-message error">{message}</p>}
+
+      {!visibleItems.length && <EmptyState title="Ingenting parkert">Når noe forstyrrer fokus, legg det her i stedet for å bære det i hodet.</EmptyState>}
+      <div className="parking-list">
+        {visibleItems.map((item) => (
+          <article className="parking-item" key={item.id}>
+            <div>
+              <strong>{item.title}</strong>
+              {item.note && <p>{item.note}</p>}
+              <span>{new Date(item.created_at).toLocaleDateString('no-NO')}</span>
+            </div>
+            <div className="parking-actions">
+              <button className="text-button" onClick={() => useInDailyPlan(item)}>Bruk i dagens plan</button>
+              <button className="text-button" onClick={() => setStatus(item, 'done')}>Ferdig</button>
+              <button className="text-button" onClick={() => setStatus(item, 'archived')}>Arkiver</button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeeklySnapshotCard({ data }) {
+  const start = weekStartIso();
+  const end = addDaysIso(start, 6);
+  const checkins = (data.checkins || []).filter((c) => c.checkin_date >= start && c.checkin_date <= end);
+  const plans = (data.dailyPlans || []).filter((p) => p.plan_date >= start && p.plan_date <= end);
+  const habitLogs = (data.habitLogs || []).filter((h) => h.log_date >= start && h.log_date <= end);
+  const avgEnergy = average(checkins.map((c) => c.energy));
+  const avgFocus = average(checkins.map((c) => c.focus));
+  const avgMood = average(checkins.map((c) => c.mood));
+  const completedPlans = plans.filter((p) => p.completed).length;
+
+  return (
+    <div className="card weekly-card">
+      <div className="section-heading">
+        <div>
+          <span className="track-label">Ukentlig oversikt</span>
+          <h2>Denne uken</h2>
+          <p>{formatDateShort(start)}–{formatDateShort(end)}. Bruk tallene som observasjoner, ikke karakterer.</p>
+        </div>
+      </div>
+      <div className="mini-metrics">
+        <div><strong>{checkins.length}</strong><span>innsjekker</span></div>
+        <div><strong>{avgEnergy ? avgEnergy.toFixed(1) : '–'}</strong><span>energi</span></div>
+        <div><strong>{avgFocus ? avgFocus.toFixed(1) : '–'}</strong><span>fokus</span></div>
+        <div><strong>{avgMood ? avgMood.toFixed(1) : '–'}</strong><span>humør</span></div>
+        <div><strong>{completedPlans}/{plans.length || 0}</strong><span>planer gjort</span></div>
+        <div><strong>{habitLogs.length}</strong><span>vaner logget</span></div>
+      </div>
+      <Button variant="ghost" onClick={() => navigate('overview')}>Gå til oversikt</Button>
+    </div>
+  );
+}
+
+function WeeklyReviewCard({ data, refresh }) {
+  const start = weekStartIso();
+  const existing = (data.weeklyReviews || []).find((r) => r.week_start === start);
+  const [worked, setWorked] = useState(existing?.worked || '');
+  const [stopped, setStopped] = useState(existing?.stopped || '');
+  const [bestWindow, setBestWindow] = useState(existing?.best_window || '');
+  const [nextAdjustment, setNextAdjustment] = useState(existing?.next_adjustment || '');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    setWorked(existing?.worked || '');
+    setStopped(existing?.stopped || '');
+    setBestWindow(existing?.best_window || '');
+    setNextAdjustment(existing?.next_adjustment || '');
+  }, [existing?.id]);
+
+  async function save() {
+    setSaving(true);
+    setMessage('');
+    const { error } = await supabase.from('weekly_reviews').upsert({
+      user_id: data.user.id,
+      week_start: start,
+      worked: worked.trim(),
+      stopped: stopped.trim(),
+      best_window: bestWindow.trim(),
+      next_adjustment: nextAdjustment.trim(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,week_start' });
+    if (error) setMessage(`Kunne ikke lagre. Har du kjørt den nye SQL-migreringen? (${error.message})`);
+    else {
+      setMessage('Ukentlig gjennomgang er lagret.');
+      await refresh();
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="card">
+      <span className="track-label">Ukentlig gjennomgang</span>
+      <h2>Hva bør du ta med deg videre?</h2>
+      <p>Bruk fem minutter på å justere systemet, ikke på å evaluere deg selv som person.</p>
+      <div className="review-grid">
+        <label>Hva fungerte denne uken?<textarea value={worked} onChange={(e) => setWorked(e.target.value)} placeholder="F.eks. korte fokusøkter etter lunsj" /></label>
+        <label>Hva stoppet meg oftest?<textarea value={stopped} onChange={(e) => setStopped(e.target.value)} placeholder="F.eks. uklare oppgaver, telefon, for høye krav" /></label>
+        <label>Når hadde jeg best energi/fokus?<textarea value={bestWindow} onChange={(e) => setBestWindow(e.target.value)} placeholder="F.eks. mellom 09 og 11, eller etter en kort tur" /></label>
+        <label>Én justering for neste uke<textarea value={nextAdjustment} onChange={(e) => setNextAdjustment(e.target.value)} placeholder="F.eks. lage dagens plan før e-post" /></label>
+      </div>
+      {message && <p className={message.startsWith('Kunne') ? 'form-message error' : 'form-message'}>{message}</p>}
+      <Button onClick={save} disabled={saving}>{saving ? 'Lagrer ...' : existing ? 'Oppdater gjennomgang' : 'Lagre gjennomgang'}</Button>
+    </div>
+  );
+}
+
+function PatternSummaryCard({ data }) {
+  const checkins = data.checkins || [];
+  const avgEnergy = average(checkins.map((c) => c.energy));
+  const avgFocus = average(checkins.map((c) => c.focus));
+  const avgMood = average(checkins.map((c) => c.mood));
+  const bestFocus = [...checkins].sort((a, b) => (b.focus || 0) - (a.focus || 0))[0];
+  const bestEnergy = [...checkins].sort((a, b) => (b.energy || 0) - (a.energy || 0))[0];
+  const activeHabits = (data.habits || []).filter((h) => !h.archived);
+  const openParking = (data.parkingItems || []).filter((item) => item.status === 'open').length;
+  const completedPlans = (data.dailyPlans || []).filter((plan) => plan.completed).length;
+
+  return (
+    <div className="card">
+      <span className="track-label">Mine mønstre</span>
+      <h2>Enkle observasjoner</h2>
+      <p>Dette er bare mønstre i det du har logget. Bruk dem som hint, ikke som fasit.</p>
+      <div className="pattern-list">
+        <div><strong>Gjennomsnittlig energi</strong><span>{avgEnergy ? avgEnergy.toFixed(1) : 'Ikke nok data ennå'}</span></div>
+        <div><strong>Gjennomsnittlig fokus</strong><span>{avgFocus ? avgFocus.toFixed(1) : 'Ikke nok data ennå'}</span></div>
+        <div><strong>Gjennomsnittlig humør</strong><span>{avgMood ? avgMood.toFixed(1) : 'Ikke nok data ennå'}</span></div>
+        <div><strong>Beste fokusdag i loggen</strong><span>{bestFocus ? `${formatDateShort(bestFocus.checkin_date)} · ${bestFocus.focus}/5` : 'Ikke nok data ennå'}</span></div>
+        <div><strong>Beste energidag i loggen</strong><span>{bestEnergy ? `${formatDateShort(bestEnergy.checkin_date)} · ${bestEnergy.energy}/5` : 'Ikke nok data ennå'}</span></div>
+        <div><strong>Aktive vaner</strong><span>{activeHabits.length}</span></div>
+        <div><strong>Dagens planer fullført</strong><span>{completedPlans}</span></div>
+        <div><strong>Åpne ting i parkeringslisten</strong><span>{openParking}</span></div>
+      </div>
+    </div>
+  );
+}
+
+function RecentPlansCard({ data }) {
+  const plans = (data.dailyPlans || []).slice(0, 7);
+  return (
+    <div className="card">
+      <span className="track-label">Planhistorikk</span>
+      <h2>Siste dagsplaner</h2>
+      {!plans.length && <EmptyState title="Ingen dagsplaner ennå">Når du lager Dagens plan, dukker de siste planene opp her.</EmptyState>}
+      <div className="entry-list">
+        {plans.map((plan) => (
+          <article className="entry" key={plan.id || plan.plan_date}>
+            <span>{formatDateShort(plan.plan_date)} · {plan.completed ? 'gjort' : 'ikke markert som gjort'}</span>
+            <strong>{plan.main_task}</strong>
+            <p>{plan.first_step}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OverviewPage({ data, refresh }) {
+  return (
+    <main className="app-shell">
+      <section className="card big-card">
+        <Badge>Oversikt</Badge>
+        <h1>Se mønstre uten å gjøre appen komplisert</h1>
+        <p>
+          Her samles ukentlig gjennomgang, enkle mønstre, nylige dagsplaner og noen få nøkkeltall.
+          Målet er oversikt, ikke mer administrasjon.
+        </p>
+      </section>
+      <section className="tool-grid overview-grid">
+        <WeeklySnapshotCard data={data} />
+        <PatternSummaryCard data={data} />
+        <WeeklyReviewCard data={data} refresh={refresh} />
+        <RecentPlansCard data={data} />
+      </section>
+    </main>
+  );
+}
+
+function ParkingPage({ data, refresh }) {
+  const closedItems = (data.parkingItems || []).filter((item) => item.status !== 'open').slice(0, 20);
+  return (
+    <main className="app-shell">
+      <section className="card big-card">
+        <Badge>Parkeringsliste</Badge>
+        <h1>Legg ting her før de tar over dagen</h1>
+        <p>
+          Dette er ikke en stor oppgaveliste. Det er et sted å parkere tanker, oppgaver og distraksjoner til du velger hva som faktisk skal inn i dagens plan.
+        </p>
+      </section>
+      <section className="content-grid">
+        <ParkingListCard data={data} refresh={refresh} />
+        <div className="card">
+          <h2>Arkiv og ferdige ting</h2>
+          {!closedItems.length && <EmptyState title="Ingen arkiverte ting ennå">Når du markerer noe som ferdig, planlagt eller arkivert, vises det her.</EmptyState>}
+          <div className="entry-list">
+            {closedItems.map((item) => (
+              <article className="entry" key={item.id}>
+                <span>{item.status === 'planned' ? 'Brukt i plan' : item.status === 'done' ? 'Ferdig' : 'Arkivert'} · {new Date(item.updated_at || item.created_at).toLocaleDateString('no-NO')}</span>
+                <strong>{item.title}</strong>
+                {item.note && <p>{item.note}</p>}
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 
 function PlanPage({ data }) {
   const programDays = getProgramDays(data.onboarding);
@@ -824,15 +1304,18 @@ function App() {
     await ensureUserRows(session.user);
     const userId = session.user.id;
 
-    const [profile, onboarding, progress, completions, checkins, journal, habits, habitLogs] = await Promise.all([
+    const [profile, onboarding, progress, completions, checkins, journal, habits, habitLogs, dailyPlans, parkingItems, weeklyReviews] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       supabase.from('onboarding_answers').select('*').eq('user_id', userId).maybeSingle(),
       supabase.from('user_progress').select('*').eq('user_id', userId).maybeSingle(),
       supabase.from('lesson_completions').select('*').eq('user_id', userId).order('completed_at', { ascending: false }),
-      supabase.from('daily_checkins').select('*').eq('user_id', userId).order('checkin_date', { ascending: false }).limit(30),
+      supabase.from('daily_checkins').select('*').eq('user_id', userId).order('checkin_date', { ascending: false }).limit(60),
       supabase.from('journal_entries').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
       supabase.from('habits').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-      supabase.from('habit_logs').select('*').eq('user_id', userId).gte('log_date', new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString().slice(0, 10))
+      supabase.from('habit_logs').select('*').eq('user_id', userId).gte('log_date', new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString().slice(0, 10)),
+      supabase.from('daily_plans').select('*').eq('user_id', userId).order('plan_date', { ascending: false }).limit(60),
+      supabase.from('parking_items').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
+      supabase.from('weekly_reviews').select('*').eq('user_id', userId).order('week_start', { ascending: false }).limit(20)
     ]);
 
     setData({
@@ -844,7 +1327,10 @@ function App() {
       checkins: checkins.data || [],
       journal: journal.data || [],
       habits: habits.data || [],
-      habitLogs: habitLogs.data || []
+      habitLogs: habitLogs.data || [],
+      dailyPlans: dailyPlans.data || [],
+      parkingItems: parkingItems.data || [],
+      weeklyReviews: weeklyReviews.data || []
     });
     setLoading(false);
   }
@@ -865,6 +1351,10 @@ function App() {
         return <OnboardingPage user={session.user} onSaved={loadData} />;
       case 'plan':
         return <PlanPage data={data} />;
+      case 'overview':
+        return <OverviewPage data={data} refresh={loadData} />;
+      case 'parking':
+        return <ParkingPage data={data} refresh={loadData} />;
       case 'lesson':
         return <LessonPage lessonId={route.params.id} data={data} refresh={loadData} />;
       case 'journal':

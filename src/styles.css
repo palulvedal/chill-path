@@ -788,3 +788,149 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.main-dashboard-grid > .card:nth-child(3) {
+  grid-column: auto;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+.overview-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.restart-card {
+  margin-bottom: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto;
+  gap: 1rem;
+  align-items: center;
+  border-color: rgba(242, 143, 107, 0.35);
+  background: rgba(255, 249, 241, 0.9);
+}
+
+.plan-form-grid, .review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.plan-form-grid label, .review-grid label {
+  min-width: 0;
+}
+
+.daily-plan-card .section-heading, .parking-card .section-heading, .weekly-card .section-heading {
+  margin-bottom: 0.8rem;
+}
+
+.parking-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  margin: 1rem 0;
+  align-items: end;
+}
+
+.parking-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.parking-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.52);
+  padding: 0.95rem;
+}
+
+.parking-item strong, .parking-item span {
+  display: block;
+}
+
+.parking-item span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  margin-top: 0.35rem;
+}
+
+.parking-item p {
+  margin: 0.25rem 0 0;
+}
+
+.parking-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mini-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.mini-metrics div, .pattern-list div {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.52);
+  border-radius: 18px;
+  padding: 0.85rem;
+}
+
+.mini-metrics strong {
+  display: block;
+  font-size: 1.55rem;
+  letter-spacing: -0.04em;
+}
+
+.mini-metrics span, .pattern-list span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.pattern-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.pattern-list strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.review-grid textarea {
+  min-height: 110px;
+}
+
+@media (max-width: 1050px) {
+  .tool-grid, .overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .restart-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .plan-form-grid, .review-grid, .parking-form, .parking-item, .mini-metrics, .pattern-list {
+    grid-template-columns: 1fr;
+  }
+
+  .parking-actions {
+    align-items: flex-start;
+  }
+}
